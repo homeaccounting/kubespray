@@ -3,6 +3,9 @@
 etcd_cluster_setup: true
 etcd_events_cluster_setup: false
 
+# Set to true to separate k8s events to a different etcd cluster
+etcd_events_cluster_enabled: false
+
 etcd_backup_prefix: "/var/backups"
 etcd_data_dir: "/var/lib/etcd"
 etcd_events_data_dir: "/var/lib/etcd-events"
@@ -17,6 +20,7 @@ etcd_cert_alt_names:
   - "etcd.kube-system.svc"
   - "etcd.kube-system"
   - "etcd"
+etcd_cert_alt_ips: []
 
 etcd_script_dir: "{{ bin_dir }}/etcd-scripts"
 
@@ -41,6 +45,8 @@ etcd_extra_vars: {}
 # Limits
 # Limit memory only if <4GB memory on host. 0=unlimited
 etcd_memory_limit: "{% if ansible_memtotal_mb < 4096 %}512M{% else %}0{% endif %}"
+
+# etcd_quota_backend_bytes: "2G"
 
 # Uncomment to set CPU share for etcd
 # etcd_cpu_limit: 300m
