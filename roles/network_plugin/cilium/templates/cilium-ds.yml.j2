@@ -21,24 +21,16 @@ spec:
       labels:
         k8s-app: cilium
         kubernetes.io/cluster-service: "true"
-      annotations:
-        # This annotation plus the CriticalAddonsOnly toleration makes
-        # cilium to be a critical pod in the cluster, which ensures cilium
-        # gets priority scheduling.
-        # https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/
-        scheduler.alpha.kubernetes.io/critical-pod: ''
 {% if cilium_enable_prometheus %}
         prometheus.io/scrape: "true"
         prometheus.io/port: "9090"
 {% endif %}
     spec:
-{% if kube_version is version('v1.11.1', '>=') %}
       priorityClassName: system-node-critical
-{% endif %}
       serviceAccountName: cilium
       initContainers:
         - name: clean-cilium-state
-          image: docker.io/library/busybox:1.28.4
+          image: {{ cilium_init_image_repo }}:{{ cilium_init_image_tag }}
           imagePullPolicy: IfNotPresent
           command: ['sh', '-c', 'if [ "${CLEAN_CILIUM_STATE}" = "true" ]; then rm -rf /var/run/cilium/state; rm -rf /sys/fs/bpf/tc/globals/cilium_*; fi']
           volumeMounts:
@@ -138,10 +130,7 @@ spec:
               command:
                 - cilium
                 - status
-            # The initial delay for the liveness probe is intentionally large to
-            # avoid an endless kill & restart cycle if in the event that the initial
-            # bootstrapping takes longer than expected.
-            initialDelaySeconds: 120
+            initialDelaySeconds: 15
             failureThreshold: 10
             periodSeconds: 10
           readinessProbe:
@@ -160,13 +149,13 @@ spec:
               mountPath: /host/opt/cni/bin
             - name: etc-cni-netd
               mountPath: /host/etc/cni/net.d
-{% if container_manager == 'crio' %}
-            - name: crio-socket
-              mountPath: /var/run/crio.sock
-              readOnly: true
-{% else %}
+{% if container_manager == 'docker' %}
             - name: docker-socket
               mountPath: /var/run/docker.sock
+              readOnly: true
+{% else %}
+            - name: "{{ container_manager }}-socket"
+              mountPath: {{ cri_socket }}
               readOnly: true
 {% endif %}
             - name: etcd-config-path
@@ -181,6 +170,7 @@ spec:
                 - "NET_ADMIN"
             privileged: true
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       volumes:
         # To keep state between restarts / upgrades
         - name: cilium-run
@@ -190,16 +180,16 @@ spec:
         - name: bpf-maps
           hostPath:
             path: /sys/fs/bpf
-{% if container_manager == 'crio' %}
-        # To read crio events from the node
-        - name: crio-socket
-          hostPath:
-            path: /var/run/crio/crio.sock
-{% else %}
+{% if container_manager == 'docker' %}
         # To read docker events from the node
         - name: docker-socket
           hostPath:
             path: /var/run/docker.sock
+{% else %}
+        # To read crio events from the node
+        - name: {{ container_manager }}-socket
+          hostPath:
+            path: {{ cri_socket }}
 {% endif %}
         # To install cilium cni plugin in the host
         - name: cni-path

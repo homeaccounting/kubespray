@@ -1,8 +1,22 @@
 ---
 local_release_dir: /tmp/releases
+download_cache_dir: /tmp/kubespray_cache
+
+# do not delete remote cache files after using them
+# NOTE: Setting this parameter to TRUE is only really useful when developing kubespray
+download_keep_remote_cache: false
+
+# Only useful when download_run_once is false: Localy cached files and images are
+# uploaded to kubernetes nodes. Also, images downloaded on those nodes are copied
+# back to the ansible runner's cache, if they are not yet preset.
+download_force_cache: false
 
 # Used to only evaluate vars from download role
 skip_downloads: false
+
+# Optionally skip kubeadm images download
+skip_kubeadm_images: false
+kubeadm_images: {}
 
 # if this is set to true will only download files once. Doesn't work
 # on Container Linux by CoreOS unless the download_localhost is true and localhost
@@ -29,81 +43,149 @@ download_always_pull: False
 download_validate_certs: True
 
 # Use the first kube-master if download_localhost is not set
-download_delegate: "{% if download_localhost %}localhost{% else %}{{groups['kube-master'][0]}}{% endif %}"
+download_delegate: "{% if download_localhost %}localhost{% else %}{{ groups['kube-master'][0] }}{% endif %}"
 
 # Arch of Docker images and needed packages
 image_arch: "{{host_architecture | default('amd64')}}"
 
 # Versions
-kube_version: v1.12.1
+kube_version: v1.15.1
 kubeadm_version: "{{ kube_version }}"
-etcd_version: v3.2.24
+etcd_version: v3.3.10
 
 # kubernetes image repo define
 kube_image_repo: "gcr.io/google-containers"
 
 # TODO(mattymo): Move calico versions to roles/network_plugins/calico/defaults
 # after migration to container download
-calico_version: "v3.1.3"
-calico_ctl_version: "v3.1.3"
-calico_cni_version: "v3.1.3"
-calico_policy_version: "v3.1.3"
+calico_version: "v3.7.3"
+calico_ctl_version: "v3.7.3"
+calico_cni_version: "v3.7.3"
+calico_policy_version: "v3.7.3"
 calico_rr_version: "v0.6.1"
+calico_typha_version: "v3.7.3"
 
-flannel_version: "v0.10.0"
+flannel_version: "v0.11.0"
 flannel_cni_version: "v0.3.0"
 
-vault_version: 0.10.1
-weave_version: "2.4.1"
+cni_version: "v0.8.1"
+
+weave_version: 2.5.2
 pod_infra_version: 3.1
 contiv_version: 1.2.1
-cilium_version: "v1.2.0"
-kube_router_version: "v0.2.1"
+cilium_version: "v1.3.0"
+kube_router_version: "v0.2.5"
+multus_version: "v3.1.autoconf"
+
+crictl_version: "v1.14.0"
 
 # Download URLs
 kubeadm_download_url: "https://storage.googleapis.com/kubernetes-release/release/{{ kubeadm_version }}/bin/linux/{{ image_arch }}/kubeadm"
-vault_download_url: "https://releases.hashicorp.com/vault/{{ vault_version }}/vault_{{ vault_version }}_linux_{{ image_arch }}.zip"
-etcd_download_url: "https://github.com/coreos/etcd/releases/download/{{ etcd_version }}/etcd-{{ etcd_version }}-linux-amd64.tar.gz"
-hyperkube_download_url: "https://storage.googleapis.com/kubernetes-release/release/{{ kube_version }}/bin/linux/amd64/hyperkube"
+hyperkube_download_url: "https://storage.googleapis.com/kubernetes-release/release/{{ kube_version }}/bin/linux/{{ image_arch }}/hyperkube"
+etcd_download_url: "https://github.com/coreos/etcd/releases/download/{{ etcd_version }}/etcd-{{ etcd_version }}-linux-{{ image_arch }}.tar.gz"
+cni_download_url: "https://github.com/containernetworking/plugins/releases/download/{{ cni_version }}/cni-plugins-linux-{{ image_arch }}-{{ cni_version }}.tgz"
+calicoctl_download_url: "https://github.com/projectcalico/calicoctl/releases/download/{{ calico_ctl_version }}/calicoctl-linux-{{ image_arch }}"
+crictl_download_url: "https://github.com/kubernetes-sigs/cri-tools/releases/download/{{ crictl_version }}/crictl-{{ crictl_version }}-{{ ansible_system | lower }}-{{ image_arch }}.tar.gz"
+
+crictl_checksums:
+  arm:
+    v1.14.0: 9910cecfd6558239ba015323066c7233d8371af359b9ddd0b2a35d5223bcf945
+    v1.13.0: 2e478ebed85f9d70d49fd8f1d1089c8fba6e37d3461aeef91813f1ab0f0df586
+  arm64:
+    v1.14.0: f76b3d00a272c8d210e9a45f77d07d3770bee310d99c4fd9a72d6f55278882e5
+    v1.13.0: 68949c0cb5a37e7604c145d189cf1e109c08c93d9c710ba663db026b9c6f2746
+  amd64:
+    v1.14.0: 483c90a9fe679590df4332ba807991c49232e8cd326c307c575ecef7fe22327b
+    v1.13.0: 9bdbea7a2b382494aff2ff014da328a042c5aba9096a7772e57fdf487e5a1d51
 
 # Checksums
 hyperkube_checksums:
-  v1.12.1: 4aa23cfb2fc2e2e4d0cbe0d83a648c38e4baabd6c66f5cdbbb40cbc7582fdc74
-  v1.12.0: f80336201f3152a5307c01f8a7206847398dde15c69b3d20c76a7d9520b60daf
-  v1.11.3: dac8da16dd6688e52b5dc510f5dd0a20b54350d52fb27ceba2f018ba2c8be692
-  v1.11.2: d727f8cae3fc26b1add9b4ff0d4d9b99605544ff7fb3baeecdca394362adbfb8
-  v1.11.1: 019ce1ecf4c6a70c06a7f4ef107443351458b4d9e6b9ce4a436bfbfbef93feea
-  v1.11.0: 7e191c164dc2c942abd37e4b50846e0be31ca959afffeff6b034beacbc2a106a
-  v1.10.8: f8a68514a6c858089f44ec93b2ffb2d764ea67d3b02b19112348f73ffcfe4386
-  v1.10.7: 13e25eb39467014fd169f38b7cd6bec8ff55525b8001c7abba85957e6470b6cc
-  v1.10.6: 0daa34fa58470e5f20def10d3dd544922c28c558719d3338ad8c524154c91257
-  v1.10.5: 1a53456f9d33a7c07adb1636f20f1d0b92b8e7647063a70d0ce134a238e680fe
-  v1.10.4: 16e36693c15494036d930139a749ec1bc492b7fefa2c3adc1abbe8f38178ae7c
-  v1.10.3: e807753dc309635902a56069ee06fc390944ef034b72c53b2e1e51d0c9ead8a3
-  v1.10.2: 3843fb594a18c4a64d77736bab72000ec4b8c4ddf178e20ec3249f709e9ed9c1
-  v1.10.1: 6e0642ad6bae68dc81b8d1c9efa18e265e17e23da1895862823cafac08c0344c
-  v1.10.0: b5575b2fb4266754c1675b8cd5d9b6cac70f3fee7a05c4e80da3a9e83e58c57e
+  arm:
+    v1.15.1: fc5af96fd9341776d84c38675be7b8045dee20af327af9331972c422a4109918
+    v1.15.0: d923c781031bfd97d0fbe50311e4d7c3616aa5b6d466b99049931f09d73d07b9
+    v1.14.4: 429a10369b2ef35a9c2d662347277339d53fa66ef55ffeabcc7d9b850e31056d
+    v1.14.3: 3fac785261bcf79f7a80b12c4a1dda893ce8c0879caf57b36d4701730671b574
+    v1.14.2: 6929a59850c8702c04d62cd343d1143b17456da040f32317e09f8c25a08d2346
+    v1.14.1: 839a4abfeafbd5f5ab057ad0e8a0b0b488b3cde14a646eba040a7f579875f565
+    v1.14.0: d090b1da23564a7e9bb8f1f4264f2116536c52611ae203fe2ca13eaad0a8003e
+  arm64:
+    v1.15.1: 80ed372c5f6c5178df88616175310057c06bdc9d0905953814a1927eb3aaa657
+    v1.15.0: 824af7d925b87a5ade63575b98b59ee81005fc76eac1dc399602308d7a60bc3c
+    v1.14.4: 9e0b4fde88a07c705e0937cd3161392684e3ca08535d14a99ae3b86bbf4c56b3
+    v1.14.3: f29211d668cbcf1aa415dfa64aad95ffc53b5410482a23cddb680caec4e907a3
+    v1.14.2: 959fb7d9c17fc8f7cb1a69920aaf08aefd62c0fbf6b5bdc46250f147ea6a5cd4
+    v1.14.1: d5236efc2547fd07c7cc2ed9345dfbcd1204385847ca686cf1c62d15056de399
+    v1.14.0: 708e00a41f6516d525dee00c91ebe3c3bf2feaf9b7f0af7689487e3e17e356c2
+  amd64:
+    v1.15.1: 22b7b1e7f5f2a452d62e0ca4c2cba67119c51e04219aaeaf8452825f9177069e
+    v1.15.0: 3cc72cc58517b97c608c7a59a20255675bc70f07217c9e11e58cac7746139283
+    v1.14.4: 5f31434f3a884257a7b0e3178fc869720a7526c8637af5713d23433ddf2592dd
+    v1.14.3: 6c6cb5c118b2129ba4e56697f42567be3587eb636a477cd342b69f87b3b049d1
+    v1.14.2: 05546057f2053e085fa8387ab82581c95fe4195cd783408ccbb4fc3487c50176
+    v1.14.1: fb34b98da9325feca8daa09bb934dbe6a533aad69c2a5599bbed81b99bb9c267
+    v1.14.0: af8b04504365dbe4ce6a1772f42eb390d4221a21149b522fc8a0c4b1cd3d97aa
 kubeadm_checksums:
-  v1.12.1: 5d95efd65aad398d85a9802799f36410ae7a95f9cbe73c8b10d2213c10a6d7be
-  v1.12.0: 463fb058b7fa2591fb01f29f2451b054f6cbaa0f8a20394b4a4eb5d68473176f
-  v1.11.3: 422a7a32ed9a7b1eaa2a4f9d121674dfbe80eb41e206092c13017d097f75aaec
-  v1.11.2: 6b17720a65b8ff46efe92a5544f149c39a221910d89939838d75581d4e6924c0
-  v1.11.1: 425ec24b95f7217ee06d1588aba22f206a5829f8c6a5352c2862368552361fe6
-  v1.11.0: 0000478fc59a24ec1727de744188d13c4d702a644954132efa9d9954371b3553
-  v1.10.8: 42660875dd94c93267bd2f567c67d692b362bd143d7502967a62c5474b2b25b8
-  v1.10.7: cdeb07fd3705e973800c4aa0b8a510d5dba1de8e1039428cfebdaf3d93e332b6
-  v1.10.6: e1d49a6b33b384f681468add2e9ee08552069ae0d6b0ad59e1c943ddbaeac3fa
-  v1.10.5: f231d4bcc9f2ed15597272e5359e380cc760c0b57a1f7cb97ce2bbab5df774e0
-  v1.10.4: 7e1169bbbeed973ab402941672dec957638dea5952a1e8bc89a37d5e709cc4b4
-  v1.10.3: b2a6f0764b89a4a13a3da4471af943ce98efeb29e2913c9e7880fe27f4f43a5f
-  v1.10.2: 394d7d340214c91d669186cf4f2110d8eb840ca965399b4d8b22d0545a60e377
-  v1.10.1: 012e48fb92b1c22543b12ab2db7d780777972043287404c98cca4d2c6ec964ec
-  v1.10.0: ebbac985834289037b544523c3e2f39bb44bea938aca9d9e88ef7e880fb8472f
+  arm:
+    v1.15.1: 855abd520291dcef0577a1a2ef87a70f522fd2b22603a12abcd86c2f7ec9c022
+    v1.15.0: 9464030a1d4e101de5f47348f3514d5a9eb95cbce2e5e31f53ada1ca485cf75e
+    v1.14.4: 36835488d7187406690ee6aa4b3c9c54855cb5c55d786d0574a508b955fe3a46
+    v1.14.3: 270b8c346aeaa309d11d65695c4a90f6bff5b1ea14bdec3c417ca2dfb3de0db3
+    v1.14.2: d2a59269aa68a4bace2a80b247b6f9a82f0542ec3004185fb0ba86e181fdfb29
+    v1.14.1: 4bd111411208f1270ed3af8780b87d24a3c17c9fdbe4b0f8c7a9a21cd765543e
+    v1.14.0: 11f2cfa8bf7ee177dbac8073ab0f039dc265536baaa8dc0c4dea699f981f6fd1
+  arm64:
+    v1.15.1: 44fbfad0f1026d249fc4f365f1e9562cd52d75360d4d1032731122ba5a4d57dc
+    v1.15.0: fe3c79070814fe847a23209b1027672fe5c5e7e5c9611e329225058926836f96
+    v1.14.4: 60745b3ac761d3aa55ab9a24677ecf4e7f48b5abed34c725047a174456e5a79b
+    v1.14.3: 8edcc07c65f81eea3fc47cd237dd6560c6907c5e0ca52d71eab53ca1164e7d01
+    v1.14.2: bff0712b87796509129aa802ad3ac25b8cc83af01762b22b4dcca8dbdb26b520
+    v1.14.1: 5cf05464168e45ee4719264a267c65f9319fae1ceb9923fedab97a9d6a629e0b
+    v1.14.0: 7ed9d706e50cd6d3fc618a7af3d19b691b8a5343ddedaeccb4ea09af3ecfae2c
+  amd64:
+    v1.15.1: 3d42441ae177826f1181e559cd2a729464ca8efadef196cfa0e8053a615333b5
+    v1.15.0: fc4aa44b96dc143d7c3062124e25fed671cab884ebb8b2446edd10abb45e88c2
+    v1.14.4: 291790a1cef82c4de28cc3338a199ca8356838ca26f775f2c2acba165b633d9f
+    v1.14.3: 026700dfff3c78be1295417e96d882136e5e1f095eb843e6575e57ef9930b5d3
+    v1.14.2: 77510f61352bb6e537e70730b670627963f2c314fbd36a644b0c435b97e9705a
+    v1.14.1: c4fc478572b5623857f5d820e1c107ae02049ca02cf2993e512a091a0196957b
+    v1.14.0: 03678f49ee4737f8b8c4f59ace0d140a36ffbc4f6035c59561f59f45b57d0c93
+crictl_binary_checksums:
+  amd64:
+    v1.14.0: 483c90a9fe679590df4332ba807991c49232e8cd326c307c575ecef7fe22327b
 
-etcd_binary_checksum: 947849dbcfa13927c81236fb76a7c01d587bbab42ab1e807184cd91b026ebed7
-vault_binary_checksum: 3c4d70ba71619a43229e65c67830e30e050eab7a81ac6b28325ff707e5914188
-hyperkube_binary_checksum: "{{ hyperkube_checksums[kube_version] }}"
-kubeadm_binary_checksum: "{{ kubeadm_checksums[kubeadm_version] }}"
+etcd_binary_checksums:
+  # Etcd does not have arm32 builds at the moment, having some dummy value is
+  # required to avoid "no attribute" error
+  arm: 0
+  arm64: 5ec97b0b872adce275b8130d19db314f7f2b803aeb24c4aae17a19e2d66853c4
+  amd64: 1620a59150ec0a0124a65540e23891243feb2d9a628092fb1edcc23974724a45
+cni_binary_checksums:
+  arm: ae6ddbd87c05a79aceb92e1c8c32d11e302f6fc55045f87f6a3ea7e0268b2fda
+  arm64: acde854e3def3c776c532ae521c19d8784534918cc56449ff16945a2909bff6d
+  amd64: e9bfc78acd3ae71be77eb8f3e890cc9078a33cc3797703b8ff2fc3077a232252
+calicoctl_binary_checksums:
+  arm:
+    v3.6.1: 0
+    v3.5.4: 0
+    v3.4.4: 0
+    v3.7.3: 0
+  amd64:
+    v3.6.1: 3b01336de37550e020343d62a38c96c4605d33a3ed7ddba2fe38bc172a5b42b5
+    v3.5.4: 197194b838cc2a9a7455c2ebd5505a5e24f8f3d994eb75c17f5dd568944100b8
+    v3.4.4: 93bd084e053cf1bf3b7fef369677bd6767c30fe7135e2c7e044e31693422ef61
+    v3.7.3: 932f68e893e80e95e10f064f1e7745e438d456f41a6ff12d11bb16ca0cab735c
+  arm64:
+    v3.6.1: 60fbaeb257061647bdf12b5ede7a0d4298a5ee216f6472e5a92bb14ef5c2a5d3
+    v3.5.4: a4481178665658658a73e4ceca9a1dff5cccded4179615c91d1c3e49fd96f237
+    v3.4.4: ff35d9e8b5c00e9fe47d05e8f5123ec98fd641370f8cd93f4fbb3d913da77ab6
+    v3.7.3: 7cfaab25c287f7ef93b2682d060b55bf39f76b668540de50376b5ed174209832
+
+etcd_binary_checksum: "{{ etcd_binary_checksums[image_arch] }}"
+cni_binary_checksum: "{{ cni_binary_checksums[image_arch] }}"
+hyperkube_binary_checksum: "{{ hyperkube_checksums[image_arch][kube_version] }}"
+kubeadm_binary_checksum: "{{ kubeadm_checksums[image_arch][kubeadm_version] }}"
+calicoctl_binary_checksum: "{{ calicoctl_binary_checksums[image_arch][calico_ctl_version] }}"
+crictl_binary_checksum: "{{ crictl_checksums[image_arch][crictl_version] }}"
 
 # Containers
 # In some cases, we need a way to set --registry-mirror or --insecure-registry for docker,
@@ -119,95 +201,103 @@ flannel_image_repo: "quay.io/coreos/flannel"
 flannel_image_tag: "{{ flannel_version }}"
 flannel_cni_image_repo: "quay.io/coreos/flannel-cni"
 flannel_cni_image_tag: "{{ flannel_cni_version }}"
-calicoctl_image_repo: "quay.io/calico/ctl"
-calicoctl_image_tag: "{{ calico_ctl_version }}"
-calico_node_image_repo: "quay.io/calico/node"
+calico_node_image_repo: "docker.io/calico/node"
 calico_node_image_tag: "{{ calico_version }}"
-calico_cni_image_repo: "quay.io/calico/cni"
+calico_cni_image_repo: "docker.io/calico/cni"
 calico_cni_image_tag: "{{ calico_cni_version }}"
-calico_policy_image_repo: "quay.io/calico/kube-controllers"
+calico_policy_image_repo: "docker.io/calico/kube-controllers"
 calico_policy_image_tag: "{{ calico_policy_version }}"
-calico_rr_image_repo: "quay.io/calico/routereflector"
+calico_rr_image_repo: "docker.io/calico/routereflector"
 calico_rr_image_tag: "{{ calico_rr_version }}"
-hyperkube_image_repo: "{{ kube_image_repo }}/hyperkube-{{ image_arch }}"
-hyperkube_image_tag: "{{ kube_version }}"
+calico_typha_image_repo: "docker.io/calico/typha"
+calico_typha_image_tag: "{{ calico_typha_version }}"
 pod_infra_image_repo: "gcr.io/google_containers/pause-{{ image_arch }}"
 pod_infra_image_tag: "{{ pod_infra_version }}"
-install_socat_image_repo: "xueshanf/install-socat"
+install_socat_image_repo: "docker.io/xueshanf/install-socat"
 install_socat_image_tag: "latest"
-netcheck_version: "v1.2.2"
-netcheck_agent_image_repo: "mirantis/k8s-netchecker-agent"
+netcheck_version: "v1.0"
+netcheck_agent_image_repo: "quay.io/l23network/k8s-netchecker-agent"
 netcheck_agent_image_tag: "{{ netcheck_version }}"
-netcheck_server_image_repo: "mirantis/k8s-netchecker-server"
+netcheck_server_image_repo: "quay.io/l23network/k8s-netchecker-server"
 netcheck_server_image_tag: "{{ netcheck_version }}"
 weave_kube_image_repo: "docker.io/weaveworks/weave-kube"
 weave_kube_image_tag: "{{ weave_version }}"
 weave_npc_image_repo: "docker.io/weaveworks/weave-npc"
 weave_npc_image_tag: "{{ weave_version }}"
-contiv_image_repo: "contiv/netplugin"
+contiv_image_repo: "docker.io/contiv/netplugin"
 contiv_image_tag: "{{ contiv_version }}"
-contiv_init_image_repo: "contiv/netplugin-init"
+contiv_init_image_repo: "docker.io/contiv/netplugin-init"
 contiv_init_image_tag: "latest"
-contiv_auth_proxy_image_repo: "contiv/auth_proxy"
+contiv_auth_proxy_image_repo: "docker.io/contiv/auth_proxy"
 contiv_auth_proxy_image_tag: "{{ contiv_version }}"
-contiv_etcd_init_image_repo: "ferest/etcd-initer"
+contiv_etcd_init_image_repo: "docker.io/ferest/etcd-initer"
 contiv_etcd_init_image_tag: latest
-contiv_ovs_image_repo: "contiv/ovs"
+contiv_ovs_image_repo: "docker.io/contiv/ovs"
 contiv_ovs_image_tag: "latest"
 cilium_image_repo: "docker.io/cilium/cilium"
 cilium_image_tag: "{{ cilium_version }}"
-kube_router_image_repo: "cloudnativelabs/kube-router"
+cilium_init_image_repo: "docker.io/library/busybox"
+cilium_init_image_tag: "1.28.4"
+kube_router_image_repo: "docker.io/cloudnativelabs/kube-router"
 kube_router_image_tag: "{{ kube_router_version }}"
-nginx_image_repo: nginx
-nginx_image_tag: 1.13
-dnsmasq_version: 2.78
-dnsmasq_image_repo: "andyshinn/dnsmasq"
-dnsmasq_image_tag: "{{ dnsmasq_version }}"
-kubedns_version: 1.14.13
-kubedns_image_repo: "gcr.io/google_containers/k8s-dns-kube-dns-{{ image_arch }}"
-kubedns_image_tag: "{{ kubedns_version }}"
+multus_image_repo: "docker.io/nfvpe/multus"
+multus_image_tag: "{{ multus_version }}"
+nginx_image_repo: docker.io/nginx
+nginx_image_tag: 1.15
 
-coredns_version: "1.2.2"
-coredns_image_repo: "gcr.io/google-containers/coredns"
-coredns_image_tag: "{{ coredns_version }}{%- if image_arch != 'amd64' -%}__{{ image_arch}}_linux{%- endif -%}"
+haproxy_image_repo: docker.io/haproxy
+haproxy_image_tag: 1.9
 
+coredns_version: "1.5.2"
+coredns_image_repo: "docker.io/coredns/coredns"
+coredns_image_tag: "{{ coredns_version }}"
 
-dnsmasq_nanny_image_repo: "gcr.io/google_containers/k8s-dns-dnsmasq-nanny-{{ image_arch }}"
-dnsmasq_nanny_image_tag: "{{ kubedns_version }}"
-dnsmasq_sidecar_image_repo: "gcr.io/google_containers/k8s-dns-sidecar-{{ image_arch }}"
-dnsmasq_sidecar_image_tag: "{{ kubedns_version }}"
-dnsmasqautoscaler_version: 1.1.2
-dnsmasqautoscaler_image_repo: "gcr.io/google_containers/cluster-proportional-autoscaler-{{ image_arch }}"
-dnsmasqautoscaler_image_tag: "{{ dnsmasqautoscaler_version }}"
-kubednsautoscaler_version: 1.2.0
-kubednsautoscaler_image_repo: "gcr.io/google_containers/cluster-proportional-autoscaler-{{ image_arch }}"
-kubednsautoscaler_image_tag: "{{ kubednsautoscaler_version }}"
-test_image_repo: busybox
+nodelocaldns_version: "1.15.1"
+nodelocaldns_image_repo: "k8s.gcr.io/k8s-dns-node-cache"
+nodelocaldns_image_tag: "{{ nodelocaldns_version }}"
+
+dnsautoscaler_version: 1.6.0
+dnsautoscaler_image_repo: "k8s.gcr.io/cluster-proportional-autoscaler-{{ image_arch }}"
+dnsautoscaler_image_tag: "{{ dnsautoscaler_version }}"
+test_image_repo: docker.io/busybox
 test_image_tag: latest
-busybox_image_repo: busybox
+busybox_image_repo: docker.io/busybox
 busybox_image_tag: 1.29.2
-helm_version: "v2.9.1"
-helm_image_repo: "lachlanevenson/k8s-helm"
+helm_version: "v2.13.1"
+helm_image_repo: "docker.io/lachlanevenson/k8s-helm"
 helm_image_tag: "{{ helm_version }}"
 tiller_image_repo: "gcr.io/kubernetes-helm/tiller"
 tiller_image_tag: "{{ helm_version }}"
-vault_image_repo: "vault"
-vault_image_tag: "{{ vault_version }}"
-registry_image_repo: "registry"
+
+registry_image_repo: "docker.io/registry"
 registry_image_tag: "2.6"
 registry_proxy_image_repo: "gcr.io/google_containers/kube-registry-proxy"
 registry_proxy_image_tag: "0.4"
+metrics_server_version: "v0.3.3"
+metrics_server_image_repo: "gcr.io/google_containers/metrics-server-amd64"
+metrics_server_image_tag: "{{ metrics_server_version }}"
 local_volume_provisioner_image_repo: "quay.io/external_storage/local-volume-provisioner"
-local_volume_provisioner_image_tag: "v2.1.0"
+local_volume_provisioner_image_tag: "v2.3.2"
 cephfs_provisioner_image_repo: "quay.io/external_storage/cephfs-provisioner"
 cephfs_provisioner_image_tag: "v2.1.0-k8s1.11"
+rbd_provisioner_image_repo: "quay.io/external_storage/rbd-provisioner"
+rbd_provisioner_image_tag: "v2.1.1-k8s1.11"
+local_path_provisioner_image_repo: "docker.io/rancher/local-path-provisioner"
+local_path_provisioner_image_tag: "v0.0.2"
 ingress_nginx_controller_image_repo: "quay.io/kubernetes-ingress-controller/nginx-ingress-controller"
-ingress_nginx_controller_image_tag: "0.19.0"
-ingress_nginx_default_backend_image_repo: "gcr.io/google_containers/defaultbackend"
-ingress_nginx_default_backend_image_tag: "1.4"
-cert_manager_version: "v0.5.0"
+ingress_nginx_controller_image_tag: "0.24.1"
+cert_manager_version: "v0.5.2"
 cert_manager_controller_image_repo: "quay.io/jetstack/cert-manager-controller"
 cert_manager_controller_image_tag: "{{ cert_manager_version }}"
+addon_resizer_version: "1.8.3"
+addon_resizer_image_repo: "k8s.gcr.io/addon-resizer"
+addon_resizer_image_tag: "{{ addon_resizer_version }}"
+
+dashboard_image_repo: "gcr.io/google_containers/kubernetes-dashboard-{{ image_arch }}"
+dashboard_image_tag: "v1.10.1"
+
+image_pull_command: "{{ docker_bin_dir }}/docker pull"
+image_info_command: "{{ docker_bin_dir }}/docker images -q | xargs {{ docker_bin_dir }}/docker inspect -f \"{{ '{{' }} if .RepoTags {{ '}}' }}{{ '{{' }} (index .RepoTags 0) {{ '}}' }}{{ '{{' }} end {{ '}}' }}{{ '{{' }} if .RepoDigests {{ '}}' }},{{ '{{' }} (index .RepoDigests 0) {{ '}}' }}{{ '{{' }} end {{ '}}' }}\" | tr '\n' ','"
 
 downloads:
   netcheck_server:
@@ -230,13 +320,15 @@ downloads:
 
   etcd:
     container: "{{ etcd_deployment_type != 'host' }}"
-    file: "{{ etcd_deployment_type == 'host' }}"
+    file: "{{ etcd_deployment_type == 'host' or etcd_kubeadm_enabled }}"
     enabled: true
     version: "{{ etcd_version }}"
     dest: "{{local_release_dir}}/etcd-{{ etcd_version }}-linux-amd64.tar.gz"
     repo: "{{ etcd_image_repo }}"
     tag: "{{ etcd_image_tag }}"
-    sha256: "{{ etcd_binary_checksum if etcd_deployment_type == 'host' else etcd_digest_checksum|d(None) }}"
+    sha256: >-
+     {{ etcd_binary_checksum if (etcd_deployment_type == 'host' or etcd_kubeadm_enabled)
+     else etcd_digest_checksum|d(None) }}
     url: "{{ etcd_download_url }}"
     unarchive: true
     owner: "root"
@@ -244,11 +336,24 @@ downloads:
     groups:
       - etcd
 
+  cni:
+    enabled: true
+    file: true
+    version: "{{ cni_version }}"
+    dest: "{{local_release_dir}}/cni-plugins-linux-{{ image_arch }}-{{ cni_version }}.tgz"
+    sha256: "{{ cni_binary_checksum }}"
+    url: "{{ cni_download_url }}"
+    unarchive: false
+    owner: "root"
+    mode: "0755"
+    groups:
+      - k8s-cluster
+
   kubeadm:
-    enabled: "{{ kubeadm_enabled }}"
+    enabled: true
     file: true
     version: "{{ kubeadm_version }}"
-    dest: "{{local_release_dir}}/kubeadm"
+    dest: "{{ local_release_dir }}/kubeadm-{{ kubeadm_version }}-{{ image_arch }}"
     sha256: "{{ kubeadm_binary_checksum }}"
     url: "{{ kubeadm_download_url }}"
     unarchive: false
@@ -257,23 +362,27 @@ downloads:
     groups:
       - k8s-cluster
 
-  hyperkube:
-    enabled: "{{ kubeadm_enabled == false }}"
-    container: true
-    repo: "{{ hyperkube_image_repo }}"
-    tag: "{{ hyperkube_image_tag }}"
-    sha256: "{{ hyperkube_digest_checksum|default(None) }}"
-    groups:
-      - k8s-cluster
-
   hyperkube_file:
     enabled: true
     file: true
     version: "{{ kube_version }}"
-    dest: "{{local_release_dir}}/hyperkube"
+    dest: "{{ local_release_dir }}/hyperkube-{{ kube_version }}-{{ image_arch }}"
     sha256: "{{ hyperkube_binary_checksum }}"
     url: "{{ hyperkube_download_url }}"
     unarchive: false
+    owner: "root"
+    mode: "0755"
+    groups:
+      - k8s-cluster
+
+  crictl:
+    file: true
+    enabled: "{{ container_manager in ['crio', 'cri', 'containerd'] }}"
+    version: "{{ crictl_version }}"
+    dest: "{{local_release_dir}}/crictl-{{ crictl_version }}-linux-{{ image_arch }}.tar.gz"
+    sha256: "{{ crictl_binary_checksum }}"
+    url: "{{ crictl_download_url }}"
+    unarchive: true
     owner: "root"
     mode: "0755"
     groups:
@@ -285,6 +394,24 @@ downloads:
     repo: "{{ cilium_image_repo }}"
     tag: "{{ cilium_image_tag }}"
     sha256: "{{ cilium_digest_checksum|default(None) }}"
+    groups:
+      - k8s-cluster
+
+  cilium_init:
+    enabled: "{{ kube_network_plugin == 'cilium' }}"
+    container: true
+    repo: "{{ cilium_init_image_repo }}"
+    tag: "{{ cilium_init_image_tag }}"
+    sha256: "{{ cilium_init_digest_checksum|default(None) }}"
+    groups:
+      - k8s-cluster
+
+  multus:
+    enabled: "{{ kube_network_plugin_multus }}"
+    container: true
+    repo: "{{ multus_image_repo }}"
+    tag: "{{ multus_image_tag }}"
+    sha256: "{{ multus_digest_checksum|default(None) }}"
     groups:
       - k8s-cluster
 
@@ -308,10 +435,14 @@ downloads:
 
   calicoctl:
     enabled: "{{ kube_network_plugin == 'calico' or kube_network_plugin == 'canal' }}"
-    container: true
-    repo: "{{ calicoctl_image_repo }}"
-    tag: "{{ calicoctl_image_tag }}"
-    sha256: "{{ calicoctl_digest_checksum|default(None) }}"
+    file: true
+    version: "{{ calico_ctl_version }}"
+    dest: "{{local_release_dir}}/calicoctl"
+    sha256: "{{ calicoctl_binary_checksum }}"
+    url: "{{ calicoctl_download_url }}"
+    unarchive: false
+    owner: "root"
+    mode: "0755"
     groups:
       - k8s-cluster
 
@@ -350,6 +481,15 @@ downloads:
     sha256: "{{ calico_rr_digest_checksum|default(None) }}"
     groups:
       - calico-rr
+
+  calico_typha:
+    enabled: "{{ typha_enabled == 'calico' }}"
+    container: true
+    repo: "{{ calico_typha_image_repo }}"
+    tag: "{{ calico_typha_image_tag }}"
+    sha256: "{{ calico_typha_digest_checksum|default(None) }}"
+    groups:
+      - k8s-cluster
 
   weave_kube:
     enabled: "{{ kube_network_plugin == 'weave' }}"
@@ -424,7 +564,7 @@ downloads:
       - k8s-cluster
 
   nginx:
-    enabled: "{{ loadbalancer_apiserver_localhost }}"
+    enabled: "{{ loadbalancer_apiserver_localhost and loadbalancer_apiserver_type == 'nginx' }}"
     container: true
     repo: "{{ nginx_image_repo }}"
     tag: "{{ nginx_image_tag }}"
@@ -432,21 +572,12 @@ downloads:
     groups:
       - kube-node
 
-  dnsmasq:
-    enabled: "{{ dns_mode == 'dnsmasq_kubedns' }}"
+  haproxy:
+    enabled: "{{ loadbalancer_apiserver_localhost and loadbalancer_apiserver_type == 'haproxy' }}"
     container: true
-    repo: "{{ dnsmasq_image_repo }}"
-    tag: "{{ dnsmasq_image_tag }}"
-    sha256: "{{ dnsmasq_digest_checksum|default(None) }}"
-    groups:
-      - kube-node
-
-  kubedns:
-    enabled: "{{ dns_mode in ['kubedns', 'dnsmasq_kubedns'] }}"
-    container: true
-    repo: "{{ kubedns_image_repo }}"
-    tag: "{{ kubedns_image_tag }}"
-    sha256: "{{ kubedns_digest_checksum|default(None) }}"
+    repo: "{{ haproxy_image_repo }}"
+    tag: "{{ haproxy_image_tag }}"
+    sha256: "{{ haproxy_digest_checksum|default(None) }}"
     groups:
       - kube-node
 
@@ -457,34 +588,25 @@ downloads:
     tag: "{{ coredns_image_tag }}"
     sha256: "{{ coredns_digest_checksum|default(None) }}"
     groups:
-      - kube-node
+      - kube-master
 
-  dnsmasq_nanny:
-    enabled: "{{ dns_mode in ['kubedns', 'dnsmasq_kubedns'] }}"
+  nodelocaldns:
+    enabled: "{{ enable_nodelocaldns }}"
     container: true
-    repo: "{{ dnsmasq_nanny_image_repo }}"
-    tag: "{{ dnsmasq_nanny_image_tag }}"
-    sha256: "{{ dnsmasq_nanny_digest_checksum|default(None) }}"
+    repo: "{{ nodelocaldns_image_repo }}"
+    tag: "{{ nodelocaldns_image_tag }}"
+    sha256: "{{ nodelocaldns_digest_checksum|default(None) }}"
     groups:
-      - kube-node
+      - k8s-cluster
 
-  dnsmasq_sidecar:
-    enabled: "{{ dns_mode in ['kubedns', 'dnsmasq_kubedns'] }}"
+  dnsautoscaler:
+    enabled: "{{ dns_mode in ['coredns', 'coredns_dual'] }}"
     container: true
-    repo: "{{ dnsmasq_sidecar_image_repo }}"
-    tag: "{{ dnsmasq_sidecar_image_tag }}"
-    sha256: "{{ dnsmasq_sidecar_digest_checksum|default(None) }}"
+    repo: "{{ dnsautoscaler_image_repo }}"
+    tag: "{{ dnsautoscaler_image_tag }}"
+    sha256: "{{ dnsautoscaler_digest_checksum|default(None) }}"
     groups:
-      - kube-node
-
-  kubednsautoscaler:
-    enabled: "{{ dns_mode in ['kubedns', 'dnsmasq_kubedns'] }}"
-    container: true
-    repo: "{{ kubednsautoscaler_image_repo }}"
-    tag: "{{ kubednsautoscaler_image_tag }}"
-    sha256: "{{ kubednsautoscaler_digest_checksum|default(None) }}"
-    groups:
-      - kube-node
+      - kube-master
 
   busybox:
     enabled: "{{ kube_network_plugin in ['kube-router'] }}"
@@ -520,22 +642,6 @@ downloads:
     groups:
       - kube-node
 
-  vault:
-    enabled: "{{ cert_management == 'vault' }}"
-    container: "{{ vault_deployment_type != 'host' }}"
-    file: "{{ vault_deployment_type == 'host' }}"
-    dest: "{{local_release_dir}}/vault/vault_{{ vault_version }}_linux_{{ image_arch }}.zip"
-    mode: "0755"
-    owner: "vault"
-    repo: "{{ vault_image_repo }}"
-    sha256: "{{ vault_binary_checksum if vault_deployment_type == 'host' else vault_digest_checksum|d(none) }}"
-    tag: "{{ vault_image_tag }}"
-    unarchive: true
-    url: "{{ vault_download_url }}"
-    version: "{{ vault_version }}"
-    groups:
-      - vault
-
   registry:
     enabled: "{{ registry_enabled }}"
     container: true
@@ -553,6 +659,25 @@ downloads:
     sha256: "{{ registry_proxy_digest_checksum|default(None) }}"
     groups:
       - kube-node
+
+  metrics_server:
+    enabled: "{{ metrics_server_enabled }}"
+    container: true
+    repo: "{{ metrics_server_image_repo }}"
+    tag: "{{ metrics_server_image_tag }}"
+    sha256: "{{ metrics_server_digest_checksum|default(None) }}"
+    groups:
+      - kube-master
+
+  addon_resizer:
+    # Currently addon_resizer is only used by metrics server
+    enabled: "{{ metrics_server_enabled }}"
+    container: true
+    repo: "{{ addon_resizer_image_repo }}"
+    tag: "{{ addon_resizer_image_tag }}"
+    sha256: "{{ addon_resizer_digest_checksum|default(None) }}"
+    groups:
+      - kube-master
 
   local_volume_provisioner:
     enabled: "{{ local_volume_provisioner_enabled }}"
@@ -572,21 +697,30 @@ downloads:
     groups:
       - kube-node
 
+  rbd_provisioner:
+    enabled: "{{ rbd_provisioner_enabled }}"
+    container: true
+    repo: "{{ rbd_provisioner_image_repo }}"
+    tag: "{{ rbd_provisioner_image_tag }}"
+    sha256: "{{ rbd_provisioner_digest_checksum|default(None) }}"
+    groups:
+      - kube-node
+
+  local_path_provisioner:
+    enabled: "{{ local_volume_provisioner_enabled }}"
+    container: true
+    repo: "{{ local_path_provisioner_image_repo }}"
+    tag: "{{ local_path_provisioner_image_tag }}"
+    sha256: "{{ local_path_provisioner_digest_checksum|default(None) }}"
+    groups:
+      - kube-node
+
   ingress_nginx_controller:
     enabled: "{{ ingress_nginx_enabled }}"
     container: true
     repo: "{{ ingress_nginx_controller_image_repo }}"
     tag: "{{ ingress_nginx_controller_image_tag }}"
     sha256: "{{ ingress_nginx_controller_digest_checksum|default(None) }}"
-    groups:
-      - kube-node
-
-  ingress_nginx_default_backend:
-    enabled: "{{ ingress_nginx_enabled }}"
-    container: true
-    repo: "{{ ingress_nginx_default_backend_image_repo }}"
-    tag: "{{ ingress_nginx_default_backend_image_tag }}"
-    sha256: "{{ ingress_nginx_default_backend_digest_checksum|default(None) }}"
     groups:
       - kube-node
 
@@ -598,6 +732,15 @@ downloads:
     sha256: "{{ cert_manager_controller_digest_checksum|default(None) }}"
     groups:
       - kube-node
+
+  dashboard:
+    enabled: "{{ dashboard_enabled }}"
+    container: true
+    repo: "{{ dashboard_image_repo }}"
+    tag: "{{ dashboard_image_tag }}"
+    sha256: "{{ dashboard_digest_checksum|default(None) }}"
+    groups:
+      - kube-master
 
 download_defaults:
   container: false
